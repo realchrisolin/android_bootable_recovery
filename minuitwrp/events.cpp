@@ -377,6 +377,11 @@ int ev_init(void)
 
     has_mouse = 0;
 
+#if defined(RECOVERY_TOUCHSCREEN_SWAP_XY) && defined(RECOVERY_TOUCHSCREEN_FLIP_X)
+    // Panel Y is left-to-right on this watch once the UI is rotated 270.
+    printf("YZL touch map: swap_xy flip_x keep-release\n");
+#endif
+
 	dir = opendir("/dev/input");
     if(dir != 0) {
         while((de = readdir(dir))) {
@@ -555,10 +560,10 @@ static int vk_modify(struct ev *e, struct input_event *ev)
             if (ev->value == 0)
             {
 #ifndef TW_IGNORE_MAJOR_AXIS_0
-                // We're in a touch release, although some devices will still send positions as well
-                e->mt_p.x = 0;
-                e->mt_p.y = 0;
-                touchReleaseOnNextSynReport = 1;
+                // Sitronix sends TRACKING_ID -1 and then TOUCH_MAJOR 0.
+                // Flag 2 is that lift. Overwriting it drops the finger-up.
+                if (touchReleaseOnNextSynReport != 2)
+                    touchReleaseOnNextSynReport = 1;
 #endif
             }
 #ifdef _EVENT_LOGGING
@@ -569,10 +574,9 @@ static int vk_modify(struct ev *e, struct input_event *ev)
 		case ABS_MT_PRESSURE: //3a
                     if (ev->value == 0)
             {
-                // We're in a touch release, although some devices will still send positions as well
-                e->mt_p.x = 0;
-                e->mt_p.y = 0;
-                touchReleaseOnNextSynReport = 1;
+                // Same lift packet as TRACKING_ID -1. Do not downgrade flag 2.
+                if (touchReleaseOnNextSynReport != 2)
+                    touchReleaseOnNextSynReport = 1;
             }
 #ifdef _EVENT_LOGGING
             printf("EV: %s => EV_ABS  ABS_MT_PRESSURE  %d\n", e->deviceName, ev->value);
@@ -621,8 +625,8 @@ static int vk_modify(struct ev *e, struct input_event *ev)
             return 1;
 #endif
             if (ev->value < 0) {
-                e->mt_p.x = 0;
-                e->mt_p.y = 0;
+                // Do not clear x,y. This controller omits an axis that did
+                // not change, and the finger-up event reports the last point.
                 touchReleaseOnNextSynReport = 2;
                 use_tracking_id_negative_as_touch_release = 1;
 #ifdef _EVENT_LOGGING
