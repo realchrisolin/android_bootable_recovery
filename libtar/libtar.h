@@ -22,6 +22,19 @@
 
 #ifdef USE_FSCRYPT
 #include "fscrypt_policy.h"
+/* <linux/fscrypt.h> #defines fscrypt_policy as fscrypt_policy_v1. vold's
+ * helpers take the version selected by USE_FSCRYPT_POLICY_V1. */
+#ifdef USE_FSCRYPT_POLICY_V1
+typedef struct fscrypt_policy_v1 twrp_fscrypt_policy;
+#define TWRP_FSCRYPT_KEY_SIZE FSCRYPT_KEY_DESCRIPTOR_SIZE
+#define TWRP_FSCRYPT_KEY_HEX FS_KEY_DESCRIPTOR_SIZE_HEX
+#define twrp_fscrypt_key(p) ((p)->master_key_descriptor)
+#else
+typedef struct fscrypt_policy_v2 twrp_fscrypt_policy;
+#define TWRP_FSCRYPT_KEY_SIZE FSCRYPT_KEY_IDENTIFIER_SIZE
+#define TWRP_FSCRYPT_KEY_HEX FSCRYPT_KEY_IDENTIFIER_HEX_SIZE
+#define twrp_fscrypt_key(p) ((p)->master_key_identifier)
+#endif
 #endif
 
 #ifdef __cplusplus
@@ -71,7 +84,7 @@ struct tar_header
 	char *gnu_longlink;
 	char *selinux_context;
 #ifdef USE_FSCRYPT
-	fscrypt_policy  *fep;
+	twrp_fscrypt_policy *fep;
 #endif
 	int has_cap_data;
 	struct vfs_cap_data cap_data;

@@ -143,34 +143,26 @@ tar_append_file(TAR *t, const char *realname, const char *savename)
 			free(t->th_buf.fep);
 			t->th_buf.fep = NULL;
 		}
-		t->th_buf.fep = (fscrypt_policy *)malloc(sizeof(fscrypt_policy));
+		t->th_buf.fep = (twrp_fscrypt_policy *)malloc(sizeof(twrp_fscrypt_policy));
 		if (!t->th_buf.fep) {
 			LOG("malloc fs_encryption_policy\n");
 			return -1;
 		}
 
 		if (fscrypt_policy_get_struct(realname, t->th_buf.fep)) {
-			uint8_t size, hex_size, *descriptor;
-			size = get_policy_size(t->th_buf.fep, false);
-			hex_size = get_policy_size(t->th_buf.fep, true);
-			descriptor = get_policy_descriptor(t->th_buf.fep);
-			char user_ce[4], user_de[4], system_de[4];
-			sprintf(user_ce,"%u%s", t->th_buf.fep->version, USER_CE_FSCRYPT_POLICY);
-			sprintf(user_de,"%u%s", t->th_buf.fep->version, USER_DE_FSCRYPT_POLICY);
-			sprintf(system_de,"%u%s", t->th_buf.fep->version, SYSTEM_DE_FSCRYPT_POLICY);
+			uint8_t tar_policy[TWRP_FSCRYPT_KEY_SIZE];
+			char policy_hex[TWRP_FSCRYPT_KEY_HEX];
+			memset(tar_policy, 0, sizeof(tar_policy));
+			bytes_to_hex(twrp_fscrypt_key(t->th_buf.fep), TWRP_FSCRYPT_KEY_SIZE, policy_hex);
 #ifdef DEBUG
 			LOG("version: %u\n", t->th_buf.fep->version);
 #endif
-			uint8_t tar_policy[size];
-			char policy_hex[hex_size];
-			memset(tar_policy, 0, sizeof(tar_policy));
-			bytes_to_hex(descriptor, size, policy_hex);
-			if (lookup_ref_key(t->th_buf.fep,  &tar_policy[0])) {
-				if (strncmp((char *) tar_policy, user_ce, sizeof(user_ce) - 1) == 0 
-				|| strncmp((char *) tar_policy, user_de, sizeof(user_de) - 1) == 0 
-				|| strncmp((char *) tar_policy, system_de, sizeof(system_de)) == 0) {
-					memcpy(descriptor, tar_policy, size);
-					LOG("found fscrypt policy '%s' - '%s' - '%s'\n", realname, descriptor, policy_hex);
+			if (lookup_ref_key(t->th_buf.fep, tar_policy)) {
+				if (strncmp((char *)tar_policy, USER_CE_FSCRYPT_POLICY, strlen(USER_CE_FSCRYPT_POLICY)) == 0
+				|| strncmp((char *)tar_policy, USER_DE_FSCRYPT_POLICY, strlen(USER_DE_FSCRYPT_POLICY)) == 0
+				|| strncmp((char *)tar_policy, SYSTEM_DE_FSCRYPT_POLICY, strlen(SYSTEM_DE_FSCRYPT_POLICY)) == 0) {
+					memcpy(twrp_fscrypt_key(t->th_buf.fep), tar_policy, TWRP_FSCRYPT_KEY_SIZE);
+					LOG("found fscrypt policy '%s' - '%s'\n", realname, policy_hex);
 				} else {
 					LOG("failed to match fscrypt tar policy for '%s' - '%s'\n", realname, policy_hex);
 					free(t->th_buf.fep);

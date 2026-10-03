@@ -62,7 +62,7 @@ th_print(TAR *t)
 	       (t->th_buf.gnu_longlink ? t->th_buf.gnu_longlink : "[NULL]"));
 #ifdef USE_FSCRYPT
 	LOG("  fep = \"%s\"\n",
-		(t->th_buf.fep ? get_policy_descriptor(t->th_buf.fep) : (uint8_t*) "[NULL]"));
+		(t->th_buf.fep ? (char *)twrp_fscrypt_key(t->th_buf.fep) : "[NULL]"));
 #endif
 }
 

@@ -557,25 +557,17 @@ tar_extract_dir(TAR *t, const char *realname)
 #ifdef USE_FSCRYPT
 	if(t->th_buf.fep != NULL)
 	{
-		uint8_t hex_size, size, *descriptor;
-		hex_size = get_policy_size(t->th_buf.fep, true);
-		size = get_policy_size(t->th_buf.fep, false);
-		descriptor = get_policy_descriptor(t->th_buf.fep);
-		char policy_hex[hex_size];
-#ifdef DEBUG
-		bytes_to_hex(descriptor, size, policy_hex);
-		LOG("tar_extract_dir(): restoring fscrypt policy %s to dir %s\n", (char *)policy_hex, realname);
-#endif
+		char policy_hex[TWRP_FSCRYPT_KEY_HEX];
 		bool policy_lookup_error = false;
-		uint8_t binary_policy[size];
-		memset(&binary_policy, 0, size);
+		uint8_t binary_policy[TWRP_FSCRYPT_KEY_SIZE];
+		memset(binary_policy, 0, sizeof(binary_policy));
 
-		if (!lookup_ref_tar(t->th_buf.fep, &binary_policy[0])) {
-			LOG("error looking up fscrypt policy for '%s' - %s\n", realname, descriptor);
+		if (!lookup_ref_tar(twrp_fscrypt_key(t->th_buf.fep), binary_policy)) {
+			LOG("error looking up fscrypt policy for '%s'\n", realname);
 			policy_lookup_error = true;
 		}
-		memcpy(descriptor, binary_policy, size);
-		bytes_to_hex(descriptor, size, policy_hex);
+		memcpy(twrp_fscrypt_key(t->th_buf.fep), binary_policy, TWRP_FSCRYPT_KEY_SIZE);
+		bytes_to_hex(twrp_fscrypt_key(t->th_buf.fep), TWRP_FSCRYPT_KEY_SIZE, policy_hex);
 		if (!policy_lookup_error)
 		{
 			LOG("attempting to restore policy: %s\n", policy_hex);
