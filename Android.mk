@@ -329,7 +329,10 @@ ifneq ($(TW_LOAD_VENDOR_MODULES),)
 endif
 ifeq ($(TW_INCLUDE_CRYPTO), true)
     LOCAL_CFLAGS += -DTW_INCLUDE_CRYPTO -DUSE_FSCRYPT -Wno-macro-redefined
-    LOCAL_SHARED_LIBRARIES += libgpt_twrp
+    # recovery links libvold.a. VolumeManager calls NetlinkEvent, which is
+    # exported by libsysutils. A shared library on libtar's link line is not
+    # visible to this executable.
+    LOCAL_SHARED_LIBRARIES += libgpt_twrp libsysutils
     LOCAL_C_INCLUDES += external/boringssl/src/include bootable/recovery/crypto
     TW_INCLUDE_CRYPTO_FBE := true
     LOCAL_CFLAGS += -DTW_INCLUDE_FBE
