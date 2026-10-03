@@ -629,22 +629,7 @@ void TWPartitionManager::Decrypt_Data() {
 				}
 			}
 		} else {
-			LOGINFO("FBE setup failed. Trying FDE...\n");
-			Set_Crypto_State();
-			Set_Crypto_Type("block");
-			int password_type = cryptfs_get_password_type();
-			if (password_type == CRYPT_TYPE_DEFAULT) {
-				LOGINFO("Device is encrypted with the default password, attempting to decrypt.\n");
-				if (Decrypt_Device("default_password") == 0) {
-					gui_msg("decrypt_success=Successfully decrypted with default password.");
-					DataManager::SetValue(TW_IS_ENCRYPTED, 0);
-				} else {
-					gui_err("unable_to_decrypt=Unable to decrypt with default password.");
-				}
-			} else {
-				DataManager::SetValue("TW_CRYPTO_TYPE", password_type);
-				DataManager::SetValue("tw_crypto_pwtype_0", password_type);
-			}
+			LOGINFO("FBE setup failed. This TWRP tree has no full-disk cryptfs.\n");
 		}
 	}
 	if (Decrypt_Data && (!Decrypt_Data->Is_Encrypted || Decrypt_Data->Is_Decrypted)) {
@@ -2100,7 +2085,6 @@ void TWPartitionManager::Check_Users_Decryption_Status() {
 
 int TWPartitionManager::Decrypt_Device(string Password, int user_id) {
 #ifdef TW_INCLUDE_CRYPTO
-	char crypto_blkdev[PROPERTY_VALUE_MAX];
 	std::vector<TWPartition*>::iterator iter;
 
 	// Mount any partitions that need to be mounted for decrypt
@@ -2175,46 +2159,15 @@ int TWPartitionManager::Decrypt_Device(string Password, int user_id) {
 		return 0;
 	}
 
-	int pwret = -1;
-	pid_t pid = fork();
-	if (pid < 0) {
-		LOGERR("fork failed\n");
-		return -1;
-	} else if (pid == 0) {
-		// Child process
-		char cPassword[255];
-		strcpy(cPassword, Password.c_str());
-		int ret = cryptfs_check_passwd(cPassword);
-		exit(ret);
-	} else {
-		// Parent
-		int status;
-		if (TWFunc::Wait_For_Child_Timeout(pid, &status, "Decrypt", 30))
-			pwret = -1;
-		else
-			pwret = WEXITSTATUS(status) ? -1 : 0;
-	}
-
-	// Unmount any partitions that were needed for decrypt
+	LOGERR("Full-disk cryptfs is not in this TWRP tree.\n");
 	for (iter = Partitions.begin(); iter != Partitions.end(); iter++) {
 		if ((*iter)->Mount_To_Decrypt) {
 			(*iter)->UnMount(false);
 		}
 	}
 	property_set("twrp.mount_to_decrypt", "0");
-
-	if (pwret != 0) {
-		gui_err("fail_decrypt=Failed to decrypt data.");
-		return -1;
-	}
-
-	property_get("ro.crypto.fs_crypto_blkdev", crypto_blkdev, "error");
-	if (strcmp(crypto_blkdev, "error") == 0) {
-		LOGERR("Error retrieving decrypted data block device.\n");
-	} else {
-		Post_Decrypt(crypto_blkdev);
-	}
-	return 0;
+	gui_err("fail_decrypt=Failed to decrypt data.");
+	return -1;
 #else
 	gui_err("no_crypto_support=No crypto support was compiled into this build.");
 	return -1;
